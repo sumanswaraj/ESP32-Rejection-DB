@@ -1,0 +1,76 @@
+<script>
+// Branding stays separate from report/job controls for easier debugging.
+let companyBrand=null,brandEditRevision=0,brandImageData='',brandDirty=false,brandFileVersion=0,brandSettingsVersion=0;
+function logoSource(brand){
+  if(!brand||!brand.logo)return '';
+  if(brand.logoType==='SVG')return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(brand.logo);
+  if(brand.logoType==='IMAGE'&&/^data:image\/(png|jpeg|webp);base64,/.test(brand.logo))return brand.logo;
+  if(brand.logoType==='URL'&&/^https:\/\//i.test(brand.logo))return brand.logo;
+  return '';
+}
+function setBrandImage(id,brand){
+  const img=document.getElementById(id),src=logoSource(brand);img.alt=(brand&&brand.name||'Company')+' logo';
+  img.onerror=()=>{img.hidden=true;if(id==='brandPreviewLogo')document.getElementById('brandPreviewError').hidden=false;};
+  img.onload=()=>{if(img.getAttribute('src')===src){img.hidden=false;if(id==='brandPreviewLogo')document.getElementById('brandPreviewError').hidden=true;}};
+  img.hidden=!src;if(src)img.src=src;else img.removeAttribute('src');
+}
+function renderBranding(brand){
+  companyBrand=brand||{name:'',logoType:'NONE',logo:'',revision:0};
+  const name=companyBrand.name||'QC Rejection Logger';
+  ['companyName','loginCompanyName','printCompanyName'].forEach(id=>document.getElementById(id).textContent=name);
+  ['companyLogo','loginCompanyLogo','printCompanyLogo'].forEach(id=>setBrandImage(id,companyBrand));
+  document.title=name;
+  if(!brandDirty)fillBrandingForm();
+}
+function fillBrandingForm(){
+  if(!companyBrand)return;
+  brandFileVersion++;brandDirty=false;brandEditRevision=companyBrand.revision;
+  $('brandName').value=companyBrand.name;$('brandLogoType').value=companyBrand.logoType;
+  brandImageData=companyBrand.logoType==='IMAGE'?companyBrand.logo:'';
+  $('brandLogoUrl').value=companyBrand.logoType==='URL'?companyBrand.logo:'';
+  $('brandSvgCode').value=companyBrand.logoType==='SVG'?companyBrand.logo:'';
+  $('brandImageFile').value='';$('brandSvgFile').value='';updateBrandPreview();
+}
+function readBrandingForm(){
+  const logoType=$('brandLogoType').value;
+  return {name:$('brandName').value.trim(),logoType,logo:logoType==='IMAGE'?brandImageData:logoType==='URL'?$('brandLogoUrl').value.trim():logoType==='SVG'?$('brandSvgCode').value.trim():''};
+}
+function updateBrandPreview(){
+  const brand=readBrandingForm();
+  $('brandImagePanel').hidden=brand.logoType!=='IMAGE';$('brandUrlPanel').hidden=brand.logoType!=='URL';$('brandSvgPanel').hidden=brand.logoType!=='SVG';
+  $('brandLogoUrl').disabled=brand.logoType!=='URL';$('brandSvgCode').disabled=brand.logoType!=='SVG';
+  $('brandPreviewName').textContent=brand.name||'QC Rejection Logger';$('brandPreviewError').hidden=true;setBrandImage('brandPreviewLogo',brand);
+}
+async function readLogoFile(input){
+  const file=input.files&&input.files[0];if(!file)return;
+  const version=++brandFileVersion;
+  if(/\.svg$/i.test(file.name)||file.type==='image/svg+xml'){
+    if(file.size>28672)throw new Error('Use an SVG file up to 28 KB, or paste up to 28,000 characters of original SVG code.');
+    const code=await file.text();if(version!==brandFileVersion)return;
+    if(code.length>28000)throw new Error('SVG logo code must be 28,000 characters or less.');
+    $('brandSvgCode').value=code;$('brandLogoType').value='SVG';
+  }else{
+    if(!['image/png','image/jpeg','image/webp'].includes(file.type))throw new Error('Choose a PNG, JPG, WebP or SVG logo.');
+    if(file.size>28672)throw new Error('Upload a logo up to 28 KB. Choose HTTPS image URL for a larger image.');
+    const result=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('The logo file could not be read.'));reader.readAsDataURL(file);});
+    if(version!==brandFileVersion)return;brandImageData=result;$('brandLogoType').value='IMAGE';
+  }
+  brandDirty=true;updateBrandPreview();
+}
+async function reloadBranding(){
+  const version=++brandSettingsVersion,r=await api('GET_BRANDING');if(version!==brandSettingsVersion)return;
+  brandDirty=false;renderBranding(r.branding);if(data)data.branding=r.branding;
+}
+function initBranding(){
+  $('brandingForm').addEventListener('input',()=>{brandDirty=true;updateBrandPreview();});
+  $('brandLogoType').addEventListener('change',()=>{brandFileVersion++;brandDirty=true;updateBrandPreview();});
+  ['brandImageFile','brandSvgFile'].forEach(id=>$(id).addEventListener('change',()=>readLogoFile($(id)).catch(fail)));
+  $('clearBrandLogo').addEventListener('click',()=>{brandFileVersion++;brandDirty=true;brandImageData='';$('brandLogoType').value='NONE';$('brandLogoUrl').value='';$('brandSvgCode').value='';$('brandImageFile').value='';$('brandSvgFile').value='';updateBrandPreview();});
+  $('reloadBranding').addEventListener('click',()=>formRun($('settingsView'),reloadBranding));
+  $('brandingForm').addEventListener('submit',e=>{e.preventDefault();formRun(e.currentTarget,async()=>{
+    const draft=readBrandingForm();if(draft.logoType!=='NONE'&&!draft.logo)throw new Error('Select a logo file, enter a direct HTTPS image URL, or paste original SVG code.');
+    brandSettingsVersion++;const r=await mutate('BRANDING_UPDATE',{name:draft.name,logo_type:draft.logoType,logo:draft.logo,revision:brandEditRevision});
+    brandDirty=false;renderBranding(r.branding);if(data)data.branding=r.branding;notify(r.message);
+  });});
+}
+</script>

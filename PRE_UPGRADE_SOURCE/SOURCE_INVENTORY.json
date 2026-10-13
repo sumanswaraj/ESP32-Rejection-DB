@@ -1,0 +1,102 @@
+[
+  {
+    "file": "01_Config.gs",
+    "sha256": "c6a6a7a6abdd1225ae31d263f1fedbbe3869e6d59ab0e0a0e55c5bd0a5400643",
+    "bytes": 4374
+  },
+  {
+    "file": "02_Storage.gs",
+    "sha256": "d779e2c6731f55b84961c8b47323c28ebead3d6731766c2bb4db253cf65d83d0",
+    "bytes": 7144
+  },
+  {
+    "file": "03_Setup.gs",
+    "sha256": "3a415c4620ca3a7a714b67dfd0db7043b2ba0154571f622452bd59f5512bc621",
+    "bytes": 18146
+  },
+  {
+    "file": "04_Crypto.gs",
+    "sha256": "a955059b6a902ed45dda68e093b5dd445feb9e2eaec6f066446c2e9a82c28f62",
+    "bytes": 3984
+  },
+  {
+    "file": "05_Auth.gs",
+    "sha256": "dd75caa9befa4b7e434f2048fc464ed30f9a3fa7739cb8fa54c8511014c2265c",
+    "bytes": 6951
+  },
+  {
+    "file": "06_Users.gs",
+    "sha256": "18be4b298b4e85a73720841133cf326af0522beddf6802f055051a274f881f91",
+    "bytes": 4105
+  },
+  {
+    "file": "07_Entities.gs",
+    "sha256": "a81b9f8720824d6fd09ab863672ba0f04b46858268648678830c1534f058329e",
+    "bytes": 2511
+  },
+  {
+    "file": "08_Jobs.gs",
+    "sha256": "b958c9ace3b9a5a28433524789192b0bb5b88c3136a5446fd4610df0a1831137",
+    "bytes": 6258
+  },
+  {
+    "file": "09_Firmware.gs",
+    "sha256": "567bd63f7aab30d3f7169a68f9651c8562f0b2753cf4f10d960cb4e0a2eda428",
+    "bytes": 7233
+  },
+  {
+    "file": "10_Reports.gs",
+    "sha256": "ab277412c309f029fe2febaa46d23151b480d4678fd11993146b676555f70be3",
+    "bytes": 5283
+  },
+  {
+    "file": "11_Api.gs",
+    "sha256": "4cb342daa5ba0eeac1b91ce4f2ed8e6dbbaa56675ff9b19987e83e9a1a6a8189",
+    "bytes": 4318
+  },
+  {
+    "file": "12_Diagnostics.gs",
+    "sha256": "ff1e76643862888a590a7d8102cfb9f3ca596674f07a685b73a64540a95547bc",
+    "bytes": 1320
+  },
+  {
+    "file": "13_Branding.gs",
+    "sha256": "ef07157d20dfd4cf63e181ffdcb259b032764c54b13f677a04aa64a38e1c0d18",
+    "bytes": 6364
+  },
+  {
+    "file": "14_History.gs",
+    "sha256": "45d8952b5e98ed4ae275b4dd11c4e5800355a2b761d8285ef62043bdd5367c08",
+    "bytes": 1507
+  },
+  {
+    "file": "Branding.html",
+    "sha256": "2f7fc871fb8da38d110df21a939674548d1ddf75400094456339109df7e9f28f",
+    "bytes": 5429
+  },
+  {
+    "file": "Client.html",
+    "sha256": "256d82e6fc360e320a445fdaa2a00c09a4490629c3b9d2cafc51c6a6a9a1725b",
+    "bytes": 23346
+  },
+  {
+    "file": "Index.html",
+    "sha256": "2dc8df64092447a37d0c565f845c186cf8bfa8bb725dfcde99b95c23d575adae",
+    "bytes": 13674
+  },
+  {
+    "file": "QR.html",
+    "sha256": "cfbaafce644330c86043e2060d4fe88054c72bf1057ed9da3898d2817c0fff6a",
+    "bytes": 57873
+  },
+  {
+    "file": "Styles.html",
+    "sha256": "11130c028debd04c028bc27875535aa917672e149eace34a5da386745a49d641",
+    "bytes": 8806
+  },
+  {
+    "file": "appsscript.json",
+    "sha256": "a24103c76b76496601db20dcdac113222f591900a4667c4643d056c6fabcadce",
+    "bytes": 338
+  }
+]

@@ -1,0 +1,149 @@
+<style>
+:root{--ink:#193343;--muted:#5d7280;--teal:#157e79;--line:#dce5e9;--paper:#fff;--back:#f3f6f8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--back);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+[hidden]{display:none!important}
+button,input,select,textarea{font:inherit}
+button{border:1px solid var(--teal);background:var(--teal);color:#fff;border-radius:7px;padding:10px 17px;cursor:pointer;font-weight:600}
+button.secondary{background:#fff;color:var(--ink);border-color:#cbd8df}
+button:disabled{opacity:.55;cursor:default}
+button:hover:not(:disabled){filter:brightness(.95)}
+input,select,textarea{width:100%;border:1px solid #bcccd5;background:#fff;border-radius:6px;padding:10px;color:var(--ink);margin-top:5px}
+textarea{resize:vertical;font:12px/1.5 ui-monospace,monospace}
+input[type=file]{font-size:12px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:3px solid #9ddcd7;outline-offset:2px}
+label{display:block;font-weight:600;font-size:13px;margin-bottom:14px}
+h1{font-size:27px;line-height:1.25;margin:0 0 9px}
+h2{font-size:18px;margin:0 0 17px}
+p{margin:0 0 16px}
+.small{font-size:12px}
+.muted{color:var(--muted)}
+.eyebrow{font-size:10px;font-weight:800;letter-spacing:1.6px;color:#72c9c3}
+.login-shell{min-height:100vh;display:grid;place-items:center;padding:25px}
+.login-card{width:min(100%,440px);padding:38px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 15px 45px #1933430c}
+.login-card h1{margin-top:10px;overflow-wrap:anywhere}
+.login-card button{width:100%}
+.login-card .eyebrow{color:var(--teal)}
+.login-logo{width:120px;height:70px;object-fit:contain;object-position:left center;margin-bottom:14px}
+/* Header and navigation are outside the scrolling main panel. */
+#appView{height:100vh;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.topbar{flex:none;padding:17px 26px;background:#183b4e;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:20px}
+.topbar strong{display:block;font-size:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.company-brand{display:flex;align-items:center;gap:14px;min-width:0;flex:1}
+.company-brand>div{min-width:0}
+.company-logo{width:64px;height:46px;object-fit:contain;flex:none;background:#fff;border-radius:5px;padding:4px}
+.identity{display:flex;align-items:center;gap:16px;font-size:13px;max-width:45%;min-width:0}
+.identity span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.identity button{flex:none}
+.layout{flex:1;min-height:0;display:grid;grid-template-columns:200px minmax(0,1fr);overflow:hidden}
+nav{min-height:0;overflow-y:auto;background:#fff;border-right:1px solid var(--line);padding:20px 12px;display:flex;flex-direction:column;gap:5px}
+nav button{flex:none;background:none;border:0;color:var(--muted);text-align:left;padding:12px 14px;font-size:13px}
+nav button.active{background:#e5f3f1;color:var(--teal)}
+.nav-footer{font-size:11px;color:var(--muted);margin:25px 14px}
+main{min-width:0;min-height:0;overflow:auto;scrollbar-gutter:stable;padding:30px;width:100%}
+.view{width:100%;max-width:1390px;margin:0 auto}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px;margin:20px 0}
+.grid-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 18px;align-items:end}
+.grid-form label{margin:0}
+.grid-form button{height:44px}
+.span2{grid-column:span 2}
+.form-help{margin-top:14px}
+.title-row{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}
+.title-row h2{margin:0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:9px;padding:20px}
+.stat span{display:block;color:var(--muted);font-size:12px}
+.stat strong{display:block;font-size:32px;margin-top:6px}
+.stat .timezone{font-size:18px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.two-col .card{margin-bottom:0}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;text-align:left;font-size:13px}
+th{color:var(--muted);font-size:11px;white-space:nowrap;background:#f5f8fa;padding:11px 12px;border-bottom:1px solid var(--line)}
+td{padding:12px;border-bottom:1px solid #edf1f3;vertical-align:top}
+td button{font-size:11px;padding:6px 9px;margin-right:5px;margin-bottom:4px}
+td .id{font-family:ui-monospace,monospace;overflow-wrap:anywhere}
+/* A bounded table area also prevents long cell values from stretching a log. */
+.history-table .table-wrap{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:7px}
+.history-table table{min-width:960px}
+.history-table th{position:sticky;top:0;z-index:1}
+.history-table td{white-space:nowrap}
+.page-size{display:flex;align-items:center;gap:9px;margin:0;font-weight:500;font-size:12px;white-space:nowrap}
+.page-size select{width:70px;margin:0;padding:7px 10px}
+.log-controls{margin:8px 0 16px}
+.log-controls p{flex:1;margin:0}
+.empty{padding:24px 0;color:var(--muted)}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:18px;font-size:12px}
+.pager span{text-align:center}
+.bar-row{margin-bottom:13px}
+.bar-label{display:flex;justify-content:space-between;gap:15px;font-size:12px;margin-bottom:5px}
+.bar{background:#edf3f4;border-radius:4px;overflow:hidden;height:10px}
+.bar i{display:block;height:100%;background:var(--teal)}
+.narrow{max-width:560px}
+.brand-preview{display:flex;gap:14px;align-items:center;padding:16px;border:1px solid var(--line);border-radius:8px;background:#f5f8fa;margin:18px 0}
+.brand-preview strong{display:block;overflow-wrap:anywhere}
+#notice{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100;width:min(90vw,650px);padding:12px 18px;background:#fff;border:1px solid #b9d9d5;border-radius:8px;box-shadow:0 8px 25px #17334122;font-size:13px}
+#notice.error{border-color:#e2a99d;color:#8b3025}
+dialog{width:min(94vw,550px);max-height:90vh;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:25px;color:var(--ink)}
+dialog::backdrop{background:#183b4e66}
+.credential{overflow-wrap:anywhere;padding:12px;background:#f3f6f8;border:1px solid var(--line);font:14px ui-monospace,monospace;white-space:pre-wrap}
+.label-card{display:inline-flex;width:290px;padding:20px;margin:10px;border:1px solid #222;flex-direction:column;align-items:center;break-inside:avoid;text-align:center}
+.label-card svg{max-width:220px;height:auto}
+.label-card strong{margin:10px 0;font-size:18px}
+.label-card p{font:12px ui-monospace,monospace;overflow-wrap:anywhere;max-width:245px}
+.print-note,.print-brand{display:none}
+@media(max-width:950px){
+ .layout{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+ nav{flex-direction:row;overflow-x:auto;overflow-y:hidden;border-right:0;border-bottom:1px solid var(--line);padding:8px}
+ nav button{white-space:nowrap}
+ .nav-footer{display:none}
+ main{padding:20px}
+ .grid-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .two-col{grid-template-columns:1fr}
+ .topbar{padding:15px 20px}
+}
+@media(max-width:550px){
+ main{padding:15px;scrollbar-gutter:auto}
+ .card{padding:17px}
+ .grid-form{grid-template-columns:1fr}
+ .span2{grid-column:auto}
+ .stats{grid-template-columns:1fr;gap:9px}
+ .stat{padding:14px}
+ .stat strong{font-size:25px}
+ .identity{font-size:11px;gap:8px;max-width:45%}
+ .identity button{padding:7px 9px}
+ .topbar{gap:12px;padding:12px 15px}
+ .topbar strong{font-size:16px}
+ .topbar .eyebrow{font-size:8px;letter-spacing:1px}
+ .company-brand{gap:8px}
+ .company-logo{width:42px;height:38px}
+ .login-card{padding:26px}
+ .pager button{padding:8px 12px}
+ .log-controls p{flex-basis:100%}
+ .history-table .table-wrap{max-height:360px}
+}
+@media print{
+ body{background:#fff;font-size:11px}
+ #appView{height:auto;display:block;overflow:visible}
+ .topbar,.layout>nav,#notice,dialog,button,.pager,.page-size{display:none!important}
+ .layout{display:block;overflow:visible}
+ main{padding:0;max-width:none;overflow:visible}
+ .view{display:none!important}
+ #reportsView{display:block!important}
+ .card{box-shadow:none;padding:10px;margin:12px 0;break-inside:avoid}
+ .stats{gap:8px}
+ .stat{padding:10px}
+ .stat strong{font-size:23px}
+ .two-col{display:grid;grid-template-columns:1fr 1fr}
+ .table-wrap,.history-table .table-wrap{overflow:visible;max-height:none;border:0}
+ .history-table table{min-width:0}
+ .history-table th{position:static}
+ td,th{font-size:9px;padding:5px}
+ .print-note{display:block}
+ .print-brand{display:flex;gap:12px;align-items:center;margin:10px 0;font-size:18px}
+ body.print-labels #appView,body.print-labels #loginView{display:none!important}
+ body.print-labels #printLabels{display:block!important}
+ .label-card{width:260px}
+}
+</style>

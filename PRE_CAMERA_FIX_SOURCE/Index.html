@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><base target="_top"><meta charset="utf-8"><?!= qcInclude_('Styles'); ?></head>
+<body>
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+  <section id="loginView" class="login-shell">
+    <div class="login-card"><img id="loginCompanyLogo" class="login-logo" alt="Company logo" hidden><div class="eyebrow">SHOP FLOOR QUALITY</div><h1 id="loginCompanyName">QC Rejection Logger</h1>
+      <p class="muted">Sign in with your assigned user ID and password.</p>
+      <form id="loginForm"><label>User ID<input id="loginId" name="username" autocomplete="username" required></label>
+        <label>Password<input id="loginPassword" type="password" autocomplete="current-password" maxlength="128" required></label>
+        <button type="submit">Sign in</button></form>
+      <p class="small muted">First installation: run setupRejectionLogger from the sheet’s Apps Script editor. The owner login appears in the sheet dialog.</p>
+    </div>
+  </section>
+  <div id="appView" hidden>
+    <header class="topbar"><div class="company-brand"><img id="companyLogo" class="company-logo" alt="Company logo" hidden><div><span class="eyebrow">QC REJECTION LOGGER</span><strong id="companyName">Rejection Logger</strong></div></div>
+      <div class="identity"><span id="identity"></span><button id="logout" class="secondary">Sign out</button></div></header>
+    <div class="layout"><nav id="nav" aria-label="Main menu">
+      <button data-view="dashboard">Dashboard</button><button data-view="jobs">Shop floor</button><button data-view="reports">Reports</button>
+      <button data-view="registry">Equipment &amp; parts</button><button data-view="legend">Defect legend</button>
+      <button data-view="users" data-admin>Users &amp; access</button><button data-view="audit" data-admin>Audit history</button>
+      <button data-view="settings" data-admin>Company settings</button>
+      <button data-view="password">My password</button><span class="nav-footer" id="version"></span>
+    </nav><main id="mainContent">
+      <section id="dashboardView" class="view" hidden>
+        <div class="title-row"><div><h1>Quality dashboard</h1><p class="muted">Rejected pieces, running jobs and registered equipment in one place.</p></div><div class="actions"><label class="live-toggle"><input id="dashAutoRefresh" type="checkbox" checked>Live refresh</label><button id="dashRefresh" class="secondary">Refresh</button></div></div>
+        <div class="card"><form id="dashboardFilters" class="grid-form filters">
+          <label>Period<select id="dashPreset"><option value="TODAY">Today</option><option value="WEEK">This week</option><option value="MONTH">This month</option><option value="ALL">All dates</option><option value="CUSTOM">Custom dates</option></select></label>
+          <label>From date<input id="dashFrom" type="date"></label><label>To date<input id="dashTo" type="date"></label>
+          <label>Logger<div class="entity-control"><input id="dashLogger" list="loggerIds" placeholder="All loggers"><button type="button" class="secondary" data-choose-entity="dashLogger" data-entity-type="LOGGER" aria-label="Choose logger">Choose</button><button type="button" class="secondary" data-scan-entity="dashLogger" data-entity-type="LOGGER" aria-label="Scan logger QR">Scan</button></div></label><label>Molding machine<div class="entity-control"><input id="dashMachine" list="machineIds" placeholder="All machines"><button type="button" class="secondary" data-choose-entity="dashMachine" data-entity-type="MACHINE" aria-label="Choose molding machine">Choose</button><button type="button" class="secondary" data-scan-entity="dashMachine" data-entity-type="MACHINE" aria-label="Scan molding machine QR">Scan</button></div></label><label>Part<div class="entity-control"><input id="dashPart" list="partIds" placeholder="All parts"><button type="button" class="secondary" data-choose-entity="dashPart" data-entity-type="PART" aria-label="Choose part">Choose</button><button type="button" class="secondary" data-scan-entity="dashPart" data-entity-type="PART" aria-label="Scan part QR">Scan</button></div></label>
+          <label>Defect<select id="dashDefect"><option value="">All defects</option></select></label><button type="submit">Apply filters</button><button type="reset" class="secondary">Reset filters</button>
+        </form></div>
+        <div class="stats dashboard-stats"><div class="stat"><span>Rejected pieces</span><strong id="dashPieces">—</strong></div><div class="stat"><span>Event submissions</span><strong id="dashEventsCount">—</strong></div><div class="stat"><span>Active jobs now</span><strong id="dashActiveJobs">—</strong></div><div class="stat"><span>Enabled machines</span><strong id="dashMachineCount">—</strong></div><div class="stat"><span>Enabled loggers</span><strong id="dashLoggerCount">—</strong></div></div>
+        <p class="small muted" id="dashPeriod"></p><p class="small muted" id="dashStatus" role="status" aria-live="polite">Load the dashboard to see current totals.</p>
+        <div class="two-col"><div class="card"><h2>Top defects</h2><div id="dashDefects"></div></div><div class="card"><h2>Machines</h2><div id="dashMachines"></div></div><div class="card"><h2>Parts</h2><div id="dashParts"></div></div><div class="card"><h2>Loggers</h2><div id="dashLoggers"></div></div></div>
+        <div class="card"><div class="title-row"><h2>Rejection trend</h2><label class="page-size">Group by<select id="dashGrouping"><option value="DAY">Day</option><option value="WEEK">Week</option><option value="MONTH">Month</option></select></label></div><p class="small muted">Latest 30 periods in the selected range. Weeks begin on Monday.</p><div id="dashTrend"></div></div>
+        <div class="card"><div class="title-row"><h2>Latest rejection events</h2><button id="dashOpenReport" class="secondary">Open filtered report</button></div><div id="dashRecent" class="history-table"></div><p class="small muted">Latest 10 matching events. Reports provides older pages and exports.</p></div>
+      </section>
+      <section id="jobsView" class="view" hidden><div class="title-row"><div><h1>Shop floor</h1><p class="muted">Assign a logger, molding machine and running part.</p></div><button id="refreshJobs" class="secondary">Refresh jobs</button></div>
+        <div class="card" data-write-job><h2>Start a job or change a running part</h2>
+          <form id="jobForm" class="grid-form"><label>Logger ID / QR<div class="entity-control"><input id="jobLogger" list="loggerIds" placeholder="Scan or select logger" required><button type="button" class="secondary" data-choose-entity="jobLogger" data-entity-type="LOGGER" aria-label="Choose logger">Choose</button><button type="button" class="secondary" data-scan-entity="jobLogger" data-entity-type="LOGGER" aria-label="Scan logger QR">Scan</button></div></label>
+            <label>Molding machine ID / QR<div class="entity-control"><input id="jobMachine" list="machineIds" placeholder="Scan or select machine" required><button type="button" class="secondary" data-choose-entity="jobMachine" data-entity-type="MACHINE" aria-label="Choose molding machine">Choose</button><button type="button" class="secondary" data-scan-entity="jobMachine" data-entity-type="MACHINE" aria-label="Scan molding machine QR">Scan</button></div></label>
+            <label>Part ID / QR<div class="entity-control"><input id="jobPart" list="partIds" placeholder="Scan or select part" required><button type="button" class="secondary" data-choose-entity="jobPart" data-entity-type="PART" aria-label="Choose part">Choose</button><button type="button" class="secondary" data-scan-entity="jobPart" data-entity-type="PART" aria-label="Scan part QR">Scan</button></div></label>
+            <label>Action<select id="jobAction"><option value="START_JOB">Start new job</option><option value="PART_CHANGEOVER">Change current job</option></select></label>
+            <label>Machine operator (optional)<input id="jobOperator" maxlength="120" placeholder="Name or employee ID"></label>
+            <label>Reason<input id="jobReason" maxlength="200" placeholder="Required for changeover"></label><button type="submit">Save job</button></form>
+          <p class="small muted form-help">Leave the operator blank if it is not needed. The signed-in user who saves the job is recorded separately.</p>
+          <p class="small muted">A keyboard QR scanner can enter IDs directly. For changeover, the current job must be shown below. Verify the new job ID on the ESP32 status page before using the new part.</p>
+        </div><div class="card"><h2>Active jobs</h2><div id="activeJobs"></div></div>
+        <div class="card"><div class="title-row"><h2>Job history</h2><label class="page-size">Rows per page<select id="jobPageSize"><option value="5">5</option><option value="10" selected>10</option></select></label></div>
+          <p class="small muted">Latest jobs first. Use Previous/Next to browse older jobs.</p><div id="jobHistory" class="history-table"></div>
+          <div class="pager"><button id="previousJobPage" class="secondary" aria-label="Previous job history page">Previous</button><span id="jobPageInfo" role="status" aria-live="polite"></span><button id="nextJobPage" class="secondary" aria-label="Next job history page">Next</button></div>
+        </div>
+      </section>
+      <section id="reportsView" class="view" hidden><div class="title-row"><div><h1>Rejection reports</h1><p class="muted">Totals count rejected pieces, including quantities entered on the device.</p></div><button id="refreshReport" class="secondary">Refresh</button></div>
+        <div class="print-brand"><img id="printCompanyLogo" class="company-logo" alt="Company logo" hidden><strong id="printCompanyName"></strong></div>
+        <div class="card"><form id="filterForm" class="grid-form filters">
+          <label>Period<select id="filterPreset"><option value="ALL">All dates</option><option value="TODAY">Today</option><option value="WEEK">This week</option><option value="MONTH">This month</option><option value="CUSTOM">Custom dates</option></select></label><label>From date<input type="date" id="filterFrom"></label><label>To date<input type="date" id="filterTo"></label>
+          <label>Logger<div class="entity-control"><input id="filterLogger" list="loggerIds" placeholder="All loggers"><button type="button" class="secondary" data-choose-entity="filterLogger" data-entity-type="LOGGER" aria-label="Choose logger">Choose</button><button type="button" class="secondary" data-scan-entity="filterLogger" data-entity-type="LOGGER" aria-label="Scan logger QR">Scan</button></div></label><label>Molding machine<div class="entity-control"><input id="filterMachine" list="machineIds" placeholder="All machines"><button type="button" class="secondary" data-choose-entity="filterMachine" data-entity-type="MACHINE" aria-label="Choose molding machine">Choose</button><button type="button" class="secondary" data-scan-entity="filterMachine" data-entity-type="MACHINE" aria-label="Scan molding machine QR">Scan</button></div></label>
+          <label>Part<div class="entity-control"><input id="filterPart" list="partIds" placeholder="All parts"><button type="button" class="secondary" data-choose-entity="filterPart" data-entity-type="PART" aria-label="Choose part">Choose</button><button type="button" class="secondary" data-scan-entity="filterPart" data-entity-type="PART" aria-label="Scan part QR">Scan</button></div></label><label>Defect<select id="filterDefect"><option value="">All defects</option></select></label>
+          <label>Data type<select id="filterType"><option value="ALL">All records</option><option value="REAL">Real records</option><option value="SAMPLE">Sample records</option></select></label>
+          <button type="submit">Apply filters</button><button type="button" id="resetReportFilters" class="secondary">Reset filters</button></form></div>
+        <div class="stats"><div class="stat"><span>Rejected pieces</span><strong id="pieceTotal">—</strong></div><div class="stat"><span>Event submissions</span><strong id="eventTotal">—</strong></div><div class="stat"><span>Report timezone</span><strong class="timezone" id="reportTimezone">—</strong></div></div>
+        <div class="two-col"><div class="card"><h2>Defects by rejected pieces</h2><div id="defectChart"></div></div><div class="card"><h2>Molding machines by rejected pieces</h2><div id="machineChart"></div></div></div>
+        <div class="card"><h2>Daily rejected pieces</h2><p class="small muted">Chart shows the latest 30 dates within the selected range.</p><div id="dailyChart"></div></div>
+        <div class="card"><div class="title-row"><h2>Rejection log</h2><div class="actions"><button id="exportCsv" class="secondary">Export all filtered CSV</button><button id="printReport" class="secondary">Print summary / PDF</button></div></div>
+          <div class="title-row log-controls"><p class="small muted" id="reportInfo">Apply filters to load a report.</p><label class="page-size">Rows per page<select id="reportPageSize"><option value="5">5</option><option value="10" selected>10</option></select></label></div>
+          <p id="reportUpdateNotice" class="small update-note" hidden>New events have arrived. Use Refresh to include them; your current page and export snapshot stay fixed.</p><div id="events" class="history-table"></div><div class="pager"><button id="previousPage" class="secondary" aria-label="Previous rejection log page">Previous</button><span id="pageInfo" role="status" aria-live="polite"></span><button id="nextPage" class="secondary" aria-label="Next rejection log page">Next</button></div>
+          <p class="print-note small muted">Printed details are the page shown above. CSV export includes all matching events in this report snapshot.</p>
+        </div>
+      </section>
+      <section id="registryView" class="view" hidden><h1>Equipment &amp; parts</h1><p class="muted">Registered IDs remain stable throughout historical jobs.</p>
+        <div class="card" data-admin><h2>Register an entity</h2><form id="entityForm" class="grid-form">
+          <label>Type<select id="entityType"><option>LOGGER</option><option>MACHINE</option><option>PART</option></select></label>
+          <label>Name<input id="entityName" required maxlength="120"></label><label>Entity ID (optional)<input id="entityId" maxlength="80" placeholder="Leave blank to generate"></label><button type="submit">Register</button>
+        </form><p class="small muted">For a logger, enter the actual Device ID shown by the ESP32 setup page, or configure the ESP32 with the generated ID before capturing its first event.</p></div>
+        <div class="card"><h2>Registry &amp; QR labels</h2><p class="small muted">QR codes are generated locally. Stop active jobs before disabling an entity.</p><div id="entities"></div></div>
+      </section>
+      <section id="legendView" class="view" hidden><h1>Defect legend</h1><p class="muted">Keypad and touch pad submit the same 16 defect codes.</p><div class="card" id="legend"></div></section>
+      <section id="usersView" class="view" hidden><h1>Users &amp; access</h1><p class="muted">Each person has a separate login ID. Owner controls Admin rights.</p>
+        <div class="card"><h2>Create a login</h2><form id="userForm" class="grid-form">
+          <label>Display name<input id="userName" maxlength="120" required></label><label>Login ID (optional)<input id="userId" maxlength="64" placeholder="Leave blank to generate"></label>
+          <label>Role<select id="userRole"><option>OPERATOR</option><option>VIEWER</option><option value="ADMIN" data-owner>ADMIN</option></select></label>
+          <label>Temporary password<input id="userPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+          <button type="button" id="generatePassword" class="secondary">Generate password</button><button type="submit">Create login</button></form>
+          <p class="small muted">Use 12–128 characters. New/reset passwords must be changed at first sign-in. Passwords and session tokens are never included in account lists.</p>
+        </div><div class="card"><h2>Accounts</h2><div id="users"></div></div>
+      </section>
+      <section id="auditView" class="view" hidden><h1>Audit history</h1><p class="muted">Latest 100 entries. Full history is in Audit_Log.</p><div class="card" id="audit"></div></section>
+      <section id="settingsView" class="view" hidden><div class="title-row"><div><h1>Company settings</h1><p class="muted">Set the name and original logo shown on the dashboard, sign-in page and printed reports.</p></div><button id="reloadBranding" class="secondary">Reload saved settings</button></div>
+        <div class="card narrow"><form id="brandingForm">
+          <label>Company name<input id="brandName" maxlength="120" placeholder="Your company name"></label>
+          <label>Logo source<select id="brandLogoType"><option value="NONE">No logo</option><option value="IMAGE">Upload an image</option><option value="URL">HTTPS image URL</option><option value="SVG">Original SVG code / SVG file</option></select></label>
+          <div id="brandImagePanel" hidden><label>PNG, JPG or WebP file<input id="brandImageFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg"></label><p class="small muted">Up to 28 KB. For a larger image, choose a direct HTTPS image URL.</p></div>
+          <div id="brandUrlPanel" hidden><label>Direct logo URL<input id="brandLogoUrl" type="url" maxlength="2048" placeholder="https://example.com/company-logo.png"></label></div>
+          <div id="brandSvgPanel" hidden><label>Original SVG code<textarea id="brandSvgCode" rows="7" maxlength="28000" spellcheck="false" placeholder='&lt;svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"&gt;…&lt;/svg&gt;'></textarea></label><label>Or select an SVG file<input id="brandSvgFile" type="file" accept="image/svg+xml,.svg"></label><p class="small muted">Paste your original vector code to preserve the logo shapes and colors. Up to 28,000 characters; use a self-contained SVG with internal references.</p></div>
+          <div class="brand-preview"><img id="brandPreviewLogo" class="company-logo" alt="Logo preview" hidden><div><span class="small muted">Preview</span><strong id="brandPreviewName">QC Rejection Logger</strong></div></div>
+          <p id="brandPreviewError" class="small muted" hidden>The logo could not be displayed. Check the file or direct image URL.</p>
+          <div class="actions"><button type="submit">Save company settings</button><button id="clearBrandLogo" type="button" class="secondary">Remove logo</button></div>
+          <p class="small muted">Changes take effect after saving. Removing the logo keeps your company name.</p>
+        </form></div>
+      </section>
+      <section id="passwordView" class="view" hidden><h1>Change my password</h1><p id="passwordMessage" class="muted">Changing your password signs out all existing sessions.</p>
+        <div class="card narrow"><form id="passwordForm"><label>Current password<input id="currentPassword" type="password" autocomplete="current-password" required maxlength="128"></label>
+          <label>New password<input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+          <label>Confirm new password<input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label><button type="submit">Change password</button></form></div>
+      </section>
+      <datalist id="loggerIds"></datalist><datalist id="machineIds"></datalist><datalist id="partIds"></datalist>
+    </main></div>
+  </div>
+  <dialog id="editDialog"><h2 id="dialogTitle"></h2><div id="dialogContent"></div><div class="actions"><button id="closeDialog" class="secondary">Close</button></div></dialog>
+  <dialog id="scanDialog" aria-labelledby="scanTitle"><h2 id="scanTitle">Scan QR</h2><p class="muted">Take a clear photo of one QR label, or choose a QR image. The image stays on this device.</p><label>Camera photo or QR image<input id="scanPhoto" type="file" accept="image/*" capture="environment"></label><div class="actions"><button id="scanLive" type="button" class="secondary">Use live camera</button><button id="scanClose" type="button" class="secondary">Close</button></div><video id="scanVideo" playsinline muted hidden></video><p id="scanStatus" class="small muted" role="status" aria-live="polite"></p></dialog>
+  <div id="printLabels" hidden></div>
+  <script>const QC_INITIAL_BRANDING = <?!= brandingJson; ?>;</script>
+  <?!= qcInclude_('QR'); ?>
+  <?!= qcInclude_('Branding'); ?>
+  <?!= qcInclude_('QRDecoder'); ?>
+  <?!= qcInclude_('Dashboard'); ?>
+  <?!= qcInclude_('EntityPicker'); ?>
+  <?!= qcInclude_('Scanner'); ?>
+  <?!= qcInclude_('Client'); ?>
+</body></html>

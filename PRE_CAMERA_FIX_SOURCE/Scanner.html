@@ -1,0 +1,62 @@
+<script>
+let scanTarget=null,scanType=null,scanStream=null,scanTimer=null,scanVersion=0;
+function stopQrCamera(){clearTimeout(scanTimer);scanTimer=null;if(scanStream)scanStream.getTracks().forEach(track=>track.stop());scanStream=null;$('scanVideo').srcObject=null;$('scanVideo').hidden=true;}
+function closeQrScanner(){scanVersion++;stopQrCamera();$('scanPhoto').value='';scanTarget=null;scanType=null;if($('scanDialog').open)$('scanDialog').close();}
+function useQrResult(payload){
+  if(!scanTarget||!scanType)return false;
+  const match=/^QC:(LOGGER|MACHINE|PART):([A-Za-z0-9_-]{1,80})$/.exec(payload);
+  if(!match){$('scanStatus').textContent='This is not a QC logger, machine or part QR label.';return false;}
+  if(match[1]!==scanType){$('scanStatus').textContent='Scan a '+scanType.toLowerCase()+' label for this field.';return false;}
+  const registered=data&&data.entities.find(e=>e.type===scanType&&e.id===match[2]);
+  if(!registered){$('scanStatus').textContent='This '+scanType.toLowerCase()+' is not registered. Refresh the page data or register it first.';return false;}
+  if(scanTarget.startsWith('job')&&!registered.enabled){$('scanStatus').textContent='This entity is disabled. Choose an enabled entity.';return false;}
+  const target=$(scanTarget);target.value=match[2];closeQrScanner();target.dispatchEvent(new window.Event('input',{bubbles:true}));target.dispatchEvent(new window.Event('change',{bubbles:true}));target.focus();notify('Selected '+registered.name+'.');return true;
+}
+function scanPixels(image,width,height){const decoded=jsQR(image,width,height,{inversionAttempts:'attemptBoth'});return decoded&&decoded.data;}
+async function scanQrPhoto(file){
+  const version=++scanVersion;stopQrCamera();if(!file)return;
+  if(!file.type.startsWith('image/')||file.size>10*1024*1024){$('scanStatus').textContent='Choose an image up to 10 MB.';return;}
+  $('scanStatus').textContent='Reading QR image…';
+  const url=URL.createObjectURL(file),image=new Image();
+  try{
+    await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('This image could not be opened. Try a JPG or PNG photo.'));image.src=url;});
+    if(version!==scanVersion||!scanTarget)return;
+    if(image.naturalWidth*image.naturalHeight>64000000)throw new Error('Choose a smaller photo.');
+    const canvas=document.createElement('canvas');let payload=null;
+    for(const maximum of [1800,900]){
+      const scale=Math.min(1,maximum/Math.max(image.naturalWidth,image.naturalHeight));canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)throw new Error('Image scanning is unavailable in this browser. Use manual entry.');
+      ctx.drawImage(image,0,0,canvas.width,canvas.height);payload=scanPixels(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height);if(payload)break;
+    }
+    if(version!==scanVersion||!scanTarget)return;
+    if(payload)useQrResult(payload);else $('scanStatus').textContent='No QR found. Take a clear, closer photo with the complete square and a white border.';
+  }catch(error){if(version===scanVersion)$('scanStatus').textContent=error.message||'The QR image could not be read.';}
+  finally{URL.revokeObjectURL(url);if(version===scanVersion)$('scanPhoto').value='';}
+}
+async function startQrCamera(){
+  const version=++scanVersion;stopQrCamera();
+  if(typeof navigator==='undefined'||!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){$('scanStatus').textContent='Use Camera photo or QR image above.';return;}
+  if(document.permissionsPolicy?.allowsFeature('camera')===false||document.featurePolicy?.allowsFeature('camera')===false){$('scanStatus').textContent='Live camera is unavailable here. Use Camera photo or QR image above.';return;}
+  $('scanStatus').textContent='Waiting for camera permission…';
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280}},audio:false});
+    if(version!==scanVersion||!scanTarget){stream.getTracks().forEach(track=>track.stop());return;}
+    scanStream=stream;const video=$('scanVideo');video.srcObject=stream;video.hidden=false;await video.play();
+    const canvas=document.createElement('canvas');$('scanStatus').textContent='Point the camera at one QC QR label.';
+    async function frame(){
+      if(version!==scanVersion||!scanStream||!scanTarget)return;
+      try{if(video.readyState>=2){const scale=Math.min(1,1000/video.videoWidth);canvas.width=Math.max(1,Math.round(video.videoWidth*scale));canvas.height=Math.max(1,Math.round(video.videoHeight*scale));const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(video,0,0,canvas.width,canvas.height);const payload=scanPixels(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height);if(payload&&useQrResult(payload))return;}}
+      catch(error){$('scanStatus').textContent='Use Camera photo or QR image above.';stopQrCamera();return;}
+      scanTimer=setTimeout(frame,250);
+    }
+    frame();
+  }catch(error){if(version===scanVersion){stopQrCamera();$('scanStatus').textContent='Live camera could not start. Use Camera photo or QR image above.';}}
+}
+function openQrScanner(target,type){closeQrScanner();scanTarget=target;scanType=type;$('scanTitle').textContent='Scan '+type.toLowerCase()+' QR';$('scanStatus').textContent='Choose Camera photo or QR image to begin.';$('scanDialog').showModal();}
+function initQrScanner(){
+  document.querySelectorAll('[data-scan-entity]').forEach(b=>b.addEventListener('click',()=>openQrScanner(b.dataset.scanEntity,b.dataset.entityType)));
+  $('scanPhoto').addEventListener('change',()=>scanQrPhoto($('scanPhoto').files[0]));$('scanLive').addEventListener('click',startQrCamera);$('scanClose').addEventListener('click',closeQrScanner);
+  $('scanDialog').addEventListener('close',()=>{scanVersion++;stopQrCamera();scanTarget=null;scanType=null;});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopQrCamera();});
+}
+</script>

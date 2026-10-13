@@ -1,0 +1,13 @@
+{
+  "success": true,
+  "version": "3.2",
+  "installedVersion": "3.2",
+  "missingSheets": [],
+  "backend": "Google Sheets / Apps Script",
+  "dashboard": "Built in",
+  "firmwareSchema": 2,
+  "eventRows": 49,
+  "jobRows": 2,
+  "users": 4,
+  "endpointConfigured": true
+}

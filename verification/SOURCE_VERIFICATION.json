@@ -1,0 +1,127 @@
+[
+  {
+    "name": "appsscript.json",
+    "match": true,
+    "sha256": "a24103c76b76496601db20dcdac113222f591900a4667c4643d056c6fabcadce"
+  },
+  {
+    "name": "01_Config.gs",
+    "match": true,
+    "sha256": "cb6584cab6a467cca1634c6c6576bd1e18882f7daf2ef35b1908ee7b4b7e68d9"
+  },
+  {
+    "name": "02_Storage.gs",
+    "match": true,
+    "sha256": "d779e2c6731f55b84961c8b47323c28ebead3d6731766c2bb4db253cf65d83d0"
+  },
+  {
+    "name": "03_Setup.gs",
+    "match": true,
+    "sha256": "9863c608ac0e8fb7b696136c9fc8f706c07b44d413e794d39a6abddb1e122d27"
+  },
+  {
+    "name": "04_Crypto.gs",
+    "match": true,
+    "sha256": "a955059b6a902ed45dda68e093b5dd445feb9e2eaec6f066446c2e9a82c28f62"
+  },
+  {
+    "name": "05_Auth.gs",
+    "match": true,
+    "sha256": "dd75caa9befa4b7e434f2048fc464ed30f9a3fa7739cb8fa54c8511014c2265c"
+  },
+  {
+    "name": "06_Users.gs",
+    "match": true,
+    "sha256": "18be4b298b4e85a73720841133cf326af0522beddf6802f055051a274f881f91"
+  },
+  {
+    "name": "07_Entities.gs",
+    "match": true,
+    "sha256": "a81b9f8720824d6fd09ab863672ba0f04b46858268648678830c1534f058329e"
+  },
+  {
+    "name": "08_Jobs.gs",
+    "match": true,
+    "sha256": "b958c9ace3b9a5a28433524789192b0bb5b88c3136a5446fd4610df0a1831137"
+  },
+  {
+    "name": "09_Firmware.gs",
+    "match": true,
+    "sha256": "a8c2e29d6e2e92ecb0fc7fe01f5d5f1a8fc3d4166cc4870abf1553a0087b157b"
+  },
+  {
+    "name": "10_Reports.gs",
+    "match": true,
+    "sha256": "6f426b60f5fe48c9a8c096b030392c7a4c0b0f583c257d92b9bd347e65022ad7"
+  },
+  {
+    "name": "11_Api.gs",
+    "match": true,
+    "sha256": "c4f45163b07d69425b8fc50d4010b9d21c14818cd048bfd80af2c319cb9f53c9"
+  },
+  {
+    "name": "12_Diagnostics.gs",
+    "match": true,
+    "sha256": "ff1e76643862888a590a7d8102cfb9f3ca596674f07a685b73a64540a95547bc"
+  },
+  {
+    "name": "13_Branding.gs",
+    "match": true,
+    "sha256": "ef07157d20dfd4cf63e181ffdcb259b032764c54b13f677a04aa64a38e1c0d18"
+  },
+  {
+    "name": "14_History.gs",
+    "match": true,
+    "sha256": "45d8952b5e98ed4ae275b4dd11c4e5800355a2b761d8285ef62043bdd5367c08"
+  },
+  {
+    "name": "15_Dashboard.gs",
+    "match": true,
+    "sha256": "97e46b24e81200eae66bea71b2da088e0892c5aa9701cfcf123da7acda06d572"
+  },
+  {
+    "name": "Index.html",
+    "match": true,
+    "sha256": "b44fd2534b6985e33b8ab9f3816833c445bd2ddc453e1b50a154a1ec3ec66aae"
+  },
+  {
+    "name": "Styles.html",
+    "match": true,
+    "sha256": "48c6c5bb51032cca4c816a39b20f538a5c99e5703a47ef7f4205476efdd68015"
+  },
+  {
+    "name": "Client.html",
+    "match": true,
+    "sha256": "51221181456671a58cb7032701d841c42f443aa8c7bcef1a60e93e942ac28f96"
+  },
+  {
+    "name": "Branding.html",
+    "match": true,
+    "sha256": "2f7fc871fb8da38d110df21a939674548d1ddf75400094456339109df7e9f28f"
+  },
+  {
+    "name": "QR.html",
+    "match": true,
+    "sha256": "cfbaafce644330c86043e2060d4fe88054c72bf1057ed9da3898d2817c0fff6a"
+  },
+  {
+    "name": "Dashboard.html",
+    "match": true,
+    "sha256": "4325a3d1b17e8d4b738920624175bab1d448dd7946bc28e333308ecef36db9f3"
+  },
+  {
+    "name": "EntityPicker.html",
+    "match": true,
+    "sha256": "57364bcb6f860bdd1a37673d9376bda62298a06728355086d8a07108f14880cf"
+  },
+  {
+    "name": "Scanner.html",
+    "match": true,
+    "sha256": "90ed07548a351dd26c0759e1dcda7a0bccfa3d70c9467a403765c297dad243ab"
+  },
+  {
+    "name": "QRDecoder.html",
+    "match": true,
+    "sha256": "3db17227c00a19d4d889175ed2714283108fa55e13731a82431921d2af2f09a4"
+  }
+]

@@ -1,0 +1,17 @@
+[
+  {
+    "file": "01_Config.gs",
+    "persisted": true,
+    "sha256": "a8bb5e93c20649b487fb5095e290ee82acd674c4213194b73b45a70d7ed97d72"
+  },
+  {
+    "file": "Scanner.html",
+    "persisted": true,
+    "sha256": "7e89f04d2cf399d08663cff58776672bf0c488746ec7103f66726cdb59b9a4c9"
+  },
+  {
+    "file": "Index.html",
+    "persisted": true,
+    "sha256": "5ccd4064563f8eb2badc98f0d16675952d6509ed8f0a587c14f392d5a57eaeb0"
+  }
+]

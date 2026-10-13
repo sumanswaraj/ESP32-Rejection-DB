@@ -1,0 +1,68 @@
+<script>
+const QC_CAMERA_URL='https://qc-camera-scanner.proudaphid4.chatgpt.site';
+const QC_CAMERA_ORIGIN=new URL(QC_CAMERA_URL).origin;
+let scanTarget=null,scanType=null,scanStream=null,scanTimer=null,scanVersion=0,scanWindow=null,scanNonce=null;
+function stopQrCamera(){clearTimeout(scanTimer);scanTimer=null;if(scanStream)scanStream.getTracks().forEach(track=>track.stop());scanStream=null;$('scanVideo').srcObject=null;$('scanVideo').hidden=true;}
+function closeCameraWindow(){scanNonce=null;const opened=scanWindow;scanWindow=null;try{if(opened&&!opened.closed)opened.close();}catch(error){}}
+function closeQrScanner(){scanVersion++;stopQrCamera();closeCameraWindow();$('scanPhoto').value='';$('scanCode').value='';scanTarget=null;scanType=null;if($('scanDialog').open)$('scanDialog').close();}
+function useQrResult(payload){
+  if(!scanTarget||!scanType)return false;
+  const match=typeof payload==='string'&&/^QC:(LOGGER|MACHINE|PART):([A-Za-z0-9_-]{1,80})$/.exec(payload);
+  if(!match){$('scanStatus').textContent='This is not a QC logger, machine or part QR label.';return false;}
+  if(match[1]!==scanType){$('scanStatus').textContent='Scan a '+scanType.toLowerCase()+' label for this field.';return false;}
+  const registered=data&&data.entities.find(e=>e.type===scanType&&e.id===match[2]);
+  if(!registered){$('scanStatus').textContent='This '+scanType.toLowerCase()+' is not registered. Refresh the page data or register it first.';return false;}
+  if(scanTarget.startsWith('job')&&!registered.enabled){$('scanStatus').textContent='This entity is disabled. Choose an enabled entity.';return false;}
+  const target=$(scanTarget);target.value=match[2];closeQrScanner();target.dispatchEvent(new window.Event('input',{bubbles:true}));target.dispatchEvent(new window.Event('change',{bubbles:true}));target.focus();notify('Selected '+registered.name+'.');return true;
+}
+function scanPixels(image,width,height){const decoded=jsQR(image,width,height,{inversionAttempts:'attemptBoth'});return decoded&&decoded.data;}
+async function scanQrPhoto(file){
+  const version=++scanVersion;stopQrCamera();closeCameraWindow();if(!file)return;
+  if(!file.type.startsWith('image/')||file.size>10*1024*1024){$('scanStatus').textContent='Choose an image up to 10 MB.';return;}
+  $('scanStatus').textContent='Reading QR image…';
+  const url=URL.createObjectURL(file),image=new Image();
+  try{
+    await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(new Error('This image could not be opened. Try a JPG or PNG photo.'));image.src=url;});
+    if(version!==scanVersion||!scanTarget)return;
+    if(image.naturalWidth*image.naturalHeight>64000000)throw new Error('Choose a smaller photo.');
+    const canvas=document.createElement('canvas');let payload=null;
+    for(const maximum of [1800,900]){
+      const scale=Math.min(1,maximum/Math.max(image.naturalWidth,image.naturalHeight));canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
+      const ctx=canvas.getContext('2d',{willReadFrequently:true});if(!ctx)throw new Error('Image scanning is unavailable in this browser. Use manual entry.');
+      ctx.drawImage(image,0,0,canvas.width,canvas.height);payload=scanPixels(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height);if(payload)break;
+    }
+    if(version!==scanVersion||!scanTarget)return;
+    if(payload)useQrResult(payload);else $('scanStatus').textContent='No QR found. Take a clear, closer photo with the complete square and a white border.';
+  }catch(error){if(version===scanVersion)$('scanStatus').textContent=error.message||'The QR image could not be read.';}
+  finally{URL.revokeObjectURL(url);if(version===scanVersion)$('scanPhoto').value='';}
+}
+function startQrCamera(){
+  if(!scanTarget||!scanType)return;
+  ++scanVersion;stopQrCamera();closeCameraWindow();
+  try{
+    scanNonce=Array.from(crypto.getRandomValues(new Uint8Array(16)),byte=>byte.toString(16).padStart(2,'0')).join('');
+    const url=new URL(QC_CAMERA_URL);url.hash=new URLSearchParams({type:scanType,nonce:scanNonce,origin:window.location.origin}).toString();
+    scanWindow=window.open(url.href,'_blank');
+    if(!scanWindow){scanNonce=null;$('scanStatus').textContent='Your browser blocked the camera window. Allow popups for this logger, then try again, or choose a photo below.';return;}
+    $('scanStatus').textContent='In the camera window, choose Start camera and allow camera access. The scanner currently requires the owner’s ChatGPT sign-in. If the field does not fill, copy the code and paste it below.';
+  }catch(error){closeCameraWindow();$('scanStatus').textContent='The camera window could not open. Choose a photo or paste a scanned QR below.';}
+}
+function receiveQrCamera(event){
+  if(!scanTarget||!scanType||!scanWindow||!scanNonce||event.origin!==QC_CAMERA_ORIGIN||event.source!==scanWindow)return;
+  const message=event.data;
+  if(!message||message.action!=='QC_SCAN_RESULT'||message.nonce!==scanNonce||typeof message.payload!=='string'||message.payload.length>100)return;
+  const opened=scanWindow,nonce=scanNonce;
+  const accepted=useQrResult(message.payload);
+  try{opened.postMessage({action:'QC_SCAN_ACK',nonce,accepted,message:accepted?'Selected in the logger.':$('scanStatus').textContent},QC_CAMERA_ORIGIN);}catch(error){}
+}
+function openQrScanner(target,type){closeQrScanner();scanTarget=target;scanType=type;$('scanTitle').textContent='Scan '+type.toLowerCase()+' QR';$('scanStatus').textContent='Open live camera, choose a photo, or paste a scanned QR.';$('scanDialog').showModal();}
+function initQrScanner(){
+  document.querySelectorAll('[data-scan-entity]').forEach(b=>b.addEventListener('click',()=>openQrScanner(b.dataset.scanEntity,b.dataset.entityType)));
+  $('scanPhoto').addEventListener('change',()=>scanQrPhoto($('scanPhoto').files[0]));$('scanLive').addEventListener('click',startQrCamera);$('scanClose').addEventListener('click',closeQrScanner);
+  $('scanUseCode').addEventListener('click',()=>useQrResult($('scanCode').value.trim()));$('scanCode').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();useQrResult($('scanCode').value.trim());}});
+  window.addEventListener('message',receiveQrCamera);
+  $('scanDialog').addEventListener('close',()=>{scanVersion++;stopQrCamera();closeCameraWindow();scanTarget=null;scanType=null;});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)stopQrCamera();});
+  window.addEventListener('pagehide',closeQrScanner);
+}
+</script>

@@ -1,0 +1,27 @@
+<script>
+function chooseEntity(targetId,type){
+  if(!data)return;const target=$(targetId),content=dialog('Choose '+type.toLowerCase());
+  const current=document.createElement('p');current.className='small muted';current.textContent='Current selection: '+(target.value||'None');content.append(current);
+  const search=field(content,'Search name or ID','search','');search.placeholder='Search or leave blank to see all choices';
+  const results=document.createElement('div');results.className='entity-choices';results.setAttribute('role','listbox');results.setAttribute('aria-label',type+' choices');content.append(results);
+  const jobField=targetId.startsWith('job');
+  const options=data.entities.filter(e=>e.type===type&&(!jobField||e.enabled));
+  function select(value){target.value=value;$('editDialog').close();target.dispatchEvent(new window.Event('input',{bubbles:true}));target.dispatchEvent(new window.Event('change',{bubbles:true}));target.focus();}
+  function render(){
+    const query=search.value.trim().toLocaleLowerCase();results.replaceChildren();
+    if(!jobField&&!query){const clear=button('All '+type.toLowerCase()+'s',()=>select(''));clear.setAttribute('role','option');results.append(clear);}
+    options.filter(e=>(e.id+' '+e.name).toLocaleLowerCase().includes(query)).forEach(e=>{
+      const choice=button(e.name+' · '+e.id+(e.enabled?'':' (disabled)'),()=>select(e.id));choice.setAttribute('role','option');choice.setAttribute('aria-selected',String(target.value===e.id));results.append(choice);
+    });
+    if(!results.children.length){const empty=document.createElement('p');empty.className='empty';empty.textContent='No matching registered '+type.toLowerCase()+'.';results.append(empty);}
+  }
+  search.addEventListener('input',render);
+  search.addEventListener('keydown',e=>{if(e.key==='ArrowDown'){e.preventDefault();results.querySelector('button')?.focus();}});
+  results.addEventListener('keydown',e=>{const buttons=Array.from(results.querySelectorAll('button')),index=buttons.indexOf(document.activeElement);
+    if(['ArrowDown','ArrowUp','Home','End'].includes(e.key)&&buttons.length){e.preventDefault();const next=e.key==='Home'?0:e.key==='End'?buttons.length-1:(index+(e.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length;buttons[next].focus();}});
+  render();search.focus();
+}
+function initEntityPicker(){
+  document.querySelectorAll('[data-choose-entity]').forEach(b=>b.addEventListener('click',()=>chooseEntity(b.dataset.chooseEntity,b.dataset.entityType)));
+}
+</script>

@@ -1,0 +1,29 @@
+Browser tab: 7, Title: "ESP32 Rejection Logger · Shop Floor - Project Editor - Apps Script", URL: "https://script.google.com/home/projects/1Uw1tEmgvxHsNRu1XL64_mO2ZNzAJgZFJLSOuH3Hf_hfAx1R40tGQhYhJ/edit".
+The following is a diff from the previous accessibility tree with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 327-328, 333-334
+~						318 button Run the selected function
+~						320 button Debug the selected function
+~						323 list Select function to run
+~							324 (selected) verifyRejectionLoggerUpgrade
++								336 container Log 1. 11:17:32 PM. Notice. Execution started.
++									337 text 11:17:32 PM
++									338 text Notice
++									339 text Execution started
++								340 container Log 2. 11:17:33 PM. Info. {"success":true,"version":"3.2.1","installedVersion":"3.2.1","missingSheets":[],"backend":"Google Sheets / Apps Script","dashboard":"Built in","firmwareSchema":2,"eventRows":49,"jobRows":2,"users":4,"endpointConfigured":true}.
++									341 text 11:17:33 PM
++									342 text Info
++									343 text {"success":true,"version":"3.2.1","installedVersion":"3.2.1","missingSheets":[],"backend":"Google Sheets / Apps Script","dashboard":"Built in","firmwareSchema":2,"eventRows":49,"jobRows":2,"users":4,"endpointConfigured":true}
++								344 container Log 3. 11:17:33 PM. Notice. Execution completed.
++									345 text 11:17:33 PM
++									346 text Notice
++									347 text Execution completed
++		348 text Run the selected function
+The focused UI element is 326 editor (settable) Description: Editor content;Press Alt+F1 for Accessibility Options., Value: /** Small authenticated refreshes; reporting always reads the immutable event ledger. */
+function qcFwRegistryRevision_(rows){
+  return qcFwHash_(qcFwCanonical_(rows.map(r=>({id:r.Entity_ID,type:r.Entity_Type,name:r.Display_Name,enabled:r.Enabled,revision:r.Revision}))));
+}
+
+function qcFwLiveState_(request){
+  qcFwRequireUser_(request.token);
+  const entities=qcFwRead_('QR_Master'),revision=qcFwRegistryRevision_(entities);
+  return {success:true,registryRevision:revision,

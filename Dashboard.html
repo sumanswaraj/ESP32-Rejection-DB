@@ -1,0 +1,61 @@
+<script>
+let dashboardReport=null,dashboardRequestVersion=0,dashboardFilters=null,dashboardSnapshot=0;
+
+function localToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:data&&data.timezone||'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
+function presetDates(value){
+  const today=localToday(),date=new Date(today+'T00:00:00Z');let from=today;
+  if(value==='WEEK'){date.setUTCDate(date.getUTCDate()-((date.getUTCDay()+6)%7));from=date.toISOString().slice(0,10);}
+  else if(value==='MONTH')from=today.slice(0,7)+'-01';
+  else if(value==='ALL')return {from:'',to:''};
+  return {from,to:today};
+}
+function applyDatePreset(prefix){
+  const preset=$(prefix+'Preset').value;if(preset==='CUSTOM')return;
+  const dates=presetDates(preset);$(prefix+'From').value=dates.from;$(prefix+'To').value=dates.to;
+}
+function readDashboardFilters(){return {from:$('dashFrom').value,to:$('dashTo').value,
+  logger:qrId($('dashLogger').value,'LOGGER'),machine:qrId($('dashMachine').value,'MACHINE'),part:qrId($('dashPart').value,'PART'),
+  defect:$('dashDefect').value,type:'ALL'};}
+function dashboardEntityName(type,id){const e=data.entities.find(e=>e.type===type&&e.id===id);return e?e.name+' · '+id:id;}
+function renderDashboardStatus(){
+  if(!data)return;
+  $('dashActiveJobs').textContent=data.activeJobs.length.toLocaleString();
+  $('dashMachineCount').textContent=data.entities.filter(e=>e.type==='MACHINE'&&e.enabled).length.toLocaleString();
+  $('dashLoggerCount').textContent=data.entities.filter(e=>e.type==='LOGGER'&&e.enabled).length.toLocaleString();
+}
+function renderDashboard(){
+  if(!dashboardReport)return;renderDashboardStatus();const r=dashboardReport;
+  $('dashPieces').textContent=r.pieces.toLocaleString();$('dashEventsCount').textContent=r.total.toLocaleString();
+  $('dashPeriod').textContent=(dashboardFilters.from||'Beginning')+' → '+(dashboardFilters.to||'Today');
+  bars('dashDefects',r.byDefect.slice(0,8));
+  bars('dashMachines',r.byMachine.slice(0,8).map(v=>({...v,name:dashboardEntityName('MACHINE',v.name)})));
+  bars('dashParts',(r.byPart||[]).slice(0,8).map(v=>({...v,name:dashboardEntityName('PART',v.name)})));
+  bars('dashLoggers',(r.byLogger||[]).slice(0,8).map(v=>({...v,name:dashboardEntityName('LOGGER',v.name)})));
+  const grouping=$('dashGrouping').value,trend=grouping==='WEEK'?r.byWeek:grouping==='MONTH'?r.byMonth:r.byDay;
+  bars('dashTrend',(trend||[]).slice(-30));
+  table('dashRecent',['Event time','Logger','Machine','Part','Defect','Pieces'],r.events.slice(0,10),e=>[date(e.timestamp),e.logger,e.machine,e.part,e.defectCode+' · '+e.defect,e.quantity]);
+  $('dashStatus').textContent='Updated '+date(new Date().toISOString())+' · '+r.timezone+' · '+($('dashAutoRefresh').checked?'Live refresh on':'Live refresh off');
+}
+async function loadDashboard(){
+  const version=++dashboardRequestVersion;dashboardFilters=readDashboardFilters();$('dashRefresh').disabled=true;$('dashStatus').textContent='Loading dashboard…';
+  try{const r=await api('GET_REPORT',{filters:dashboardFilters,page:0,page_size:10});if(version!==dashboardRequestVersion)return;
+    dashboardReport=r;dashboardSnapshot=r.snapshotRow;renderDashboard();
+  }catch(error){if(version!==dashboardRequestVersion)return;$('dashStatus').textContent='Dashboard could not be loaded. Use Refresh to try again.';throw error;}
+  finally{if(version===dashboardRequestVersion)$('dashRefresh').disabled=false;}
+}
+function initDashboard(){
+  $('dashboardFilters').addEventListener('submit',e=>{e.preventDefault();loadDashboard().catch(fail);});
+  $('dashRefresh').addEventListener('click',()=>loadDashboard().catch(fail));
+  $('dashPreset').addEventListener('change',()=>{applyDatePreset('dash');loadDashboard().catch(fail);});
+  ['dashFrom','dashTo'].forEach(id=>$(id).addEventListener('change',()=>{$('dashPreset').value='CUSTOM';}));
+  $('dashGrouping').addEventListener('change',renderDashboard);
+  $('dashboardFilters').addEventListener('reset',()=>setTimeout(()=>{applyDatePreset('dash');loadDashboard().catch(fail);},0));
+  $('dashOpenReport').addEventListener('click',()=>{
+    const filters=readDashboardFilters();for(const [key,id] of Object.entries({from:'filterFrom',to:'filterTo',logger:'filterLogger',machine:'filterMachine',part:'filterPart',defect:'filterDefect'}))$(id).value=filters[key];
+    $('filterPreset').value='CUSTOM';$('filterType').value='ALL';report=null;switchView('reports');
+  });
+  $('filterPreset').addEventListener('change',()=>{applyDatePreset('filter');loadReport(true).catch(fail);});
+  ['filterFrom','filterTo'].forEach(id=>$(id).addEventListener('change',()=>{$('filterPreset').value='CUSTOM';}));
+  $('resetReportFilters').addEventListener('click',()=>{$('filterForm').reset();loadReport(true).catch(fail);});
+}
+</script>

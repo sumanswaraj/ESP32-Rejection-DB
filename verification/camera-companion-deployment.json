@@ -1,0 +1,11 @@
+{
+  "project_id": "appgprj_6acbc79836a08191954b48a81df105fb",
+  "commit_sha": "9e8d3c3c69fd01e69564c33dfbb5020c78221b0a",
+  "deployment_id": "appgdep_6acbca64e9f48191976b0f2a66a9f653",
+  "version_id": "appgprj_6acbc79836a08191954b48a81df105fb~appgver_1019de9656b481919a09f4c3a2e20f06",
+  "status": "succeeded",
+  "url": "https://qc-camera-scanner.proudaphid4.chatgpt.site",
+  "audience": "owner-private",
+  "camera_hardware_tested": false,
+  "browser_preview_tested": false
+}

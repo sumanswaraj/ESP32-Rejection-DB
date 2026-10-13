@@ -1,0 +1,124 @@
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+let token=sessionStorage.getItem('qc_session')||'',user=null,data=null,view='jobs',report=null,reportFilters=null,reportPage=0,reportPageSize=10,jobPageSize=10,filterTimer=null,noticeTimer=null,inFlight=0,reportRequestVersion=0,jobHistoryRequestVersion=0,dataRequestVersion=0,activeJobsVersion=0,sessionEpoch=0;
+const pendingRequests=new Map();
+function notify(message,error=false,keep=false){clearTimeout(noticeTimer);const el=$('notice');el.textContent=message;el.classList.toggle('error',error);el.hidden=false;if(!keep)noticeTimer=setTimeout(()=>el.hidden=true,7000);}
+function uid(){if(crypto.randomUUID)return crypto.randomUUID().replace(/-/g,'');const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');}
+function api(action,payload={}){inFlight++;const epoch=sessionEpoch,request=Object.assign({},payload,{action,token});return new Promise((resolve,reject)=>{
+  google.script.run.withSuccessHandler(r=>{inFlight--;if(epoch!==sessionEpoch){reject(new Error('REQUEST_SUPERSEDED'));return;}if(r&&r.success)resolve(r);else reject(new Error(r&&r.error||'Unexpected server response'));})
+    .withFailureHandler(e=>{inFlight--;reject(new Error(epoch!==sessionEpoch?'REQUEST_SUPERSEDED':e.message||'Request failed. Try again.'));}).qcPortal(request);
+});}
+async function mutate(action,payload){const key=action+JSON.stringify(payload);let id=pendingRequests.get(key);if(!id){id=uid();pendingRequests.set(key,id);}const r=await api(action,Object.assign({},payload,{request_id:id}));pendingRequests.delete(key);return r;}
+function fail(error){const msg=error.message||String(error);if(msg==='REQUEST_SUPERSEDED')return;if(msg.startsWith('AUTH:')){clearSession();notify('Your session expired or access changed. Sign in again.',true);}else if(msg.startsWith('PASSWORD_CHANGE_REQUIRED')){switchView('password');notify('Change your temporary password to continue.',true);}else notify(msg,true);}
+function clearSession(){sessionEpoch++;reportRequestVersion++;jobHistoryRequestVersion++;dataRequestVersion++;activeJobsVersion++;brandSettingsVersion++;token='';user=null;data=null;report=null;reportFilters=null;brandDirty=false;fillBrandingForm();pendingRequests.clear();sessionStorage.removeItem('qc_session');$('appView').hidden=true;$('loginView').hidden=false;$('editDialog').close();}
+async function formRun(form,fn){const buttons=Array.from(form.querySelectorAll('button'));buttons.forEach(b=>b.disabled=true);try{await fn();}catch(e){fail(e);}finally{buttons.forEach(b=>b.disabled=false);}}
+function showIdentity(){const admin=['OWNER','ADMIN'].includes(user.role),owner=user.role==='OWNER',writes=['OWNER','ADMIN','OPERATOR'].includes(user.role);$('identity').textContent=user.name+' · '+user.role;
+  document.querySelectorAll('[data-admin]').forEach(el=>el.hidden=!admin);document.querySelectorAll('[data-owner]').forEach(el=>el.hidden=!owner);document.querySelectorAll('[data-write-job]').forEach(el=>el.hidden=!writes);
+  document.querySelectorAll('#nav button').forEach(b=>b.disabled=user.mustChangePassword&&b.dataset.view!=='password');
+  $('passwordMessage').textContent=user.mustChangePassword?'Change your temporary password before using the portal.':'Changing your password signs out all existing sessions.';
+  $('loginView').hidden=true;$('appView').hidden=false;
+}
+function switchView(name){if(user&&user.mustChangePassword)name='password';if(['users','audit','settings'].includes(name)&&!['OWNER','ADMIN'].includes(user.role))return;
+  if(name!==view)$('mainContent').scrollTop=0;view=name;document.querySelectorAll('.view').forEach(s=>s.hidden=s.id!==name+'View');document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
+  if(name==='reports'&&!report)loadReport(true).catch(fail);
+}
+async function loadData(){const version=++dataRequestVersion;jobHistoryRequestVersion++;activeJobsVersion++;if(data)updateJobHistoryControls(true);
+  try{const r=await api('GET_DATA',{job_page_size:jobPageSize});if(version!==dataRequestVersion)return;data=r;user=r.user;showIdentity();$('version').textContent='v'+r.version+' · '+r.timezone;renderBranding(r.branding);fillLists();renderJobs();renderEntities();renderUsers();renderLegend();renderAudit();}
+  finally{if(version===dataRequestVersion&&data)updateJobHistoryControls();}
+}
+function fillLists(){[['loggerIds','LOGGER'],['machineIds','MACHINE'],['partIds','PART']].forEach(([id,type])=>{const list=$(id);list.replaceChildren();data.entities.filter(e=>e.type===type).forEach(e=>{const option=document.createElement('option');option.value=e.id;option.label=e.name+(e.enabled?'':' (disabled)');list.append(option);});});
+  const select=$('filterDefect'),chosen=select.value;select.replaceChildren(new Option('All defects',''));data.defects.forEach(d=>select.add(new Option(d.code+' · '+d.name,String(d.code))));select.value=chosen;
+}
+function text(value){return value==null?'':String(value);}
+function date(value){if(!value)return '—';try{return new Intl.DateTimeFormat('en-IN',{dateStyle:'medium',timeStyle:'short',timeZone:data&&data.timezone||'Asia/Kolkata'}).format(new Date(value));}catch(e){return text(value);}}
+function button(label,fn){const b=document.createElement('button');b.type='button';b.className='secondary';b.textContent=label;b.addEventListener('click',()=>Promise.resolve(fn()).catch(fail));return b;}
+function table(target,headers,rows,cellBuilder){const holder=$(target);holder.replaceChildren();if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent='No records yet.';holder.append(p);return;}
+  const wrap=document.createElement('div');wrap.className='table-wrap';const t=document.createElement('table'),head=document.createElement('thead'),tr=document.createElement('tr');headers.forEach(h=>{const th=document.createElement('th');th.textContent=h;tr.append(th);});head.append(tr);t.append(head);const body=document.createElement('tbody');
+  rows.forEach(r=>{const tr=document.createElement('tr');cellBuilder(r).forEach(value=>{const td=document.createElement('td');if(value instanceof Node)td.append(value);else td.textContent=text(value);tr.append(td);});body.append(tr);});t.append(body);wrap.append(t);holder.append(wrap);
+}
+function renderJobs(){const canWrite=['OWNER','ADMIN','OPERATOR'].includes(user.role);
+  table('activeJobs',['Logger','Machine','Part','Machine operator','Job ID','Started','Started by','Controls'],data.activeJobs,j=>{const controls=document.createElement('div');if(canWrite){controls.append(button('Use for changeover',()=>{$('jobLogger').value=j.logger;$('jobMachine').value=j.machine;$('jobPart').value=j.part;$('jobOperator').value=j.operator||'';$('jobAction').value='PART_CHANGEOVER';$('jobPart').focus();}),button('Stop',()=>stopJob(j)));}return [j.logger,j.machine,j.part,j.operator||'—',j.id,date(j.start),j.startedBy,controls];});
+  renderJobHistory();
+}
+function renderJobHistory(){table('jobHistory',['Job ID','Logger','Machine','Part','Machine operator','Started','Ended','Started by','Closed by','Reason'],data.jobs.slice(0,jobPageSize),j=>[j.id,j.logger,j.machine,j.part,j.operator||'—',date(j.start),date(j.end),j.startedBy,j.closedBy,j.closeReason||j.reason]);updateJobHistoryControls();}
+function updateJobHistoryControls(busy=false){if(!data)return;const history=data.jobHistory||{page:0,pageSize:jobPageSize,total:data.jobs.length},start=history.total?history.page*history.pageSize+1:0,end=Math.min((history.page+1)*history.pageSize,history.total);
+  $('jobPageInfo').textContent=(busy?'Loading… · ':'')+start+'–'+end+' of '+history.total+' jobs';$('previousJobPage').disabled=busy||history.page===0;$('nextJobPage').disabled=busy||end>=history.total;$('jobPageSize').disabled=busy;
+}
+async function loadJobHistory(fresh=false,page=0){const version=++jobHistoryRequestVersion;updateJobHistoryControls(true);
+  try{const r=await api('GET_JOB_HISTORY',{page,page_size:jobPageSize,...(!fresh&&data.jobHistory?{snapshot_row:data.jobHistory.snapshotRow}:{})});if(version!==jobHistoryRequestVersion)return;data.jobs=r.jobs;data.jobHistory={page:r.page,pageSize:r.pageSize,total:r.total,snapshotRow:r.snapshotRow};renderJobHistory();}
+  catch(e){if(version===jobHistoryRequestVersion)throw e;}
+  finally{if(version===jobHistoryRequestVersion&&data)updateJobHistoryControls();}
+}
+async function refreshJobs(){const version=++activeJobsVersion,r=await api('GET_ACTIVE_JOBS');if(version!==activeJobsVersion)return;data.activeJobs=r.activeJobs;renderJobs();}
+function qrId(value,type){const s=value.trim();if(!s.startsWith('QC:'))return s;const m=/^QC:(LOGGER|MACHINE|PART):([A-Za-z0-9_-]{1,80})$/.exec(s);if(!m||m[1]!==type)throw new Error('Scan a '+type+' QR code for this field.');return m[2];}
+function dialog(title){$('dialogTitle').textContent=title;$('dialogContent').replaceChildren();if(!$('editDialog').open)$('editDialog').showModal();return $('dialogContent');}
+function field(parent,label,type,value,options){const wrap=document.createElement('label');wrap.textContent=label;let input;
+  if(type==='select'){input=document.createElement('select');options.forEach(v=>input.add(new Option(v,v)));}else{input=document.createElement('input');input.type=type;}
+  if(value!==undefined)input.value=value;wrap.append(input);parent.append(wrap);return input;
+}
+function saveControl(parent,label,fn){const form=document.createElement('form');const b=document.createElement('button');b.textContent=label;b.type='submit';form.append(b);form.addEventListener('submit',e=>{e.preventDefault();formRun(form,fn);});parent.append(form);}
+function stopJob(j){const content=dialog('Stop job '+j.logger),reason=field(content,'Stop reason','text','');reason.required=true;saveControl(content,'Stop job',async()=>{if(!reason.value.trim())throw new Error('Enter a stop reason.');const r=await mutate('STOP_JOB',{job_id:j.id,reason:reason.value,revision:j.revision});$('editDialog').close();notify(r.message);await loadData();});}
+function renderEntities(){const canEdit=['OWNER','ADMIN'].includes(user.role);table('entities',['Type','ID','Name','Enabled','QR / controls'],data.entities,e=>{const controls=document.createElement('div');controls.append(button('QR label',()=>showQr(e)));if(canEdit)controls.append(button('Edit',()=>editEntity(e)));return [e.type,e.id,e.name,e.enabled?'Yes':'No',controls];});}
+function editEntity(e){const content=dialog('Edit '+e.id),name=field(content,'Display name','text',e.name),enabled=field(content,'Enabled','select',e.enabled?'Yes':'No',['Yes','No']);saveControl(content,'Save entity',async()=>{const r=await mutate('ENTITY_UPDATE',{entity_id:e.id,name:name.value,enabled:enabled.value==='Yes',revision:e.revision});$('editDialog').close();notify(r.message);await loadData();});}
+function makeLabel(e){const card=document.createElement('div');card.className='label-card';const title=document.createElement('strong');title.textContent=e.name;const type=document.createElement('div');type.textContent=e.type;card.append(title,type);
+  const qr=qrcode(0,'M');qr.addData(e.qr||'QC:'+e.type+':'+e.id);qr.make();const svg=document.createElement('div');svg.innerHTML=qr.createSvgTag({cellSize:4,margin:16});card.append(svg);const id=document.createElement('p');id.textContent=e.id;card.append(id);return card;
+}
+function showQr(e){const content=dialog('QR label');content.append(makeLabel(e),button('Print label',()=>{$('printLabels').replaceChildren(makeLabel(e));$('printLabels').hidden=false;document.body.classList.add('print-labels');window.print();document.body.classList.remove('print-labels');$('printLabels').hidden=true;}));}
+function renderUsers(){if(!['OWNER','ADMIN'].includes(user.role))return;table('users',['Login ID','Name','Role','Enabled','Last sign-in','Controls'],data.users,u=>{const controls=document.createElement('div');const allowed=u.role!=='OWNER'&&(user.role==='OWNER'||['OPERATOR','VIEWER'].includes(u.role));if(allowed)controls.append(button('Edit access',()=>editUser(u)),button('Reset password',()=>resetPassword(u)));return [u.userId,u.name,u.role,u.enabled?'Yes':'No',date(u.lastLogin),controls];});}
+function editUser(u){const content=dialog('Edit access: '+u.userId),name=field(content,'Name','text',u.name),role=field(content,'Role','select',u.role,user.role==='OWNER'?['ADMIN','OPERATOR','VIEWER']:['OPERATOR','VIEWER']),enabled=field(content,'Enabled','select',u.enabled?'Yes':'No',['Yes','No']);saveControl(content,'Save and revoke sessions',async()=>{const r=await mutate('USER_UPDATE',{user_id:u.userId,name:name.value,role:role.value,enabled:enabled.value==='Yes',revision:u.revision});$('editDialog').close();notify(r.message);await loadData();});}
+function resetPassword(u){const content=dialog('Reset password: '+u.userId),password=field(content,'Temporary password (12–128 characters)','password','QC-'+uid());password.minLength=12;password.maxLength=128;content.append(button('Show / hide',()=>password.type=password.type==='password'?'text':'password'));saveControl(content,'Reset and revoke sessions',async()=>{const p=password.value,r=await mutate('USER_RESET_PASSWORD',{user_id:u.userId,password:p,revision:u.revision});await loadData();showCredential(u.userId,p,r.message);});}
+function showCredential(id,password,message){const content=dialog('Save login credentials'),p=document.createElement('p');p.textContent=message||'Share these credentials with the intended user. They must change the temporary password at first sign-in.';content.append(p);const box=document.createElement('pre');box.className='credential';box.textContent='Login ID: '+id+'\nTemporary password: '+password;content.append(box);}
+function renderLegend(){table('legend',['Defect code','Keypad key','Touch pad','Defect'],data.defects,d=>[d.code,d.key,d.touch,d.name]);}
+function renderAudit(){if(!['OWNER','ADMIN'].includes(user.role))return;table('audit',['Time','User ID','Action','Entity type','Entity ID'],data.audit,a=>[date(a.time),a.actor,a.action,a.type,a.id]);}
+function readFilters(){return {from:$('filterFrom').value,to:$('filterTo').value,logger:qrId($('filterLogger').value,'LOGGER'),machine:qrId($('filterMachine').value,'MACHINE'),part:qrId($('filterPart').value,'PART'),defect:$('filterDefect').value,type:$('filterType').value};}
+async function loadReport(fresh=false){const requestVersion=++reportRequestVersion;if(fresh){reportPage=0;reportFilters=readFilters();report=null;}if(!reportFilters)reportFilters=readFilters();
+  $('previousPage').disabled=true;$('nextPage').disabled=true;$('reportPageSize').disabled=true;$('exportCsv').disabled=true;$('printReport').disabled=true;$('reportInfo').textContent='Loading report…';
+  try{const r=await api('GET_REPORT',{filters:reportFilters,page:reportPage,page_size:reportPageSize,...(report?{snapshot_row:report.snapshotRow}:{})});if(requestVersion!==reportRequestVersion)return;report=r;reportPage=r.page;renderReport();}
+  catch(e){if(requestVersion!==reportRequestVersion)return;if(report){reportPage=report.page;renderReport();}else{$('reportInfo').textContent='Report could not be loaded. Use Refresh to try again.';$('events').replaceChildren();}throw e;}
+  finally{if(requestVersion===reportRequestVersion){$('reportPageSize').disabled=false;$('exportCsv').disabled=!report;$('printReport').disabled=!report;}}
+}
+function bars(target,rows){const holder=$(target);holder.replaceChildren();if(!rows.length){const p=document.createElement('p');p.className='empty';p.textContent='No rejected pieces for these filters.';holder.append(p);return;}const max=Math.max(...rows.map(r=>r.pieces),1);
+  rows.forEach(r=>{const row=document.createElement('div');row.className='bar-row';const label=document.createElement('div');label.className='bar-label';const name=document.createElement('span'),value=document.createElement('strong');name.textContent=r.name;value.textContent=r.pieces.toLocaleString();label.append(name,value);const bar=document.createElement('div'),fill=document.createElement('i');bar.className='bar';fill.style.width=(100*r.pieces/max)+'%';bar.append(fill);row.append(label,bar);holder.append(row);});
+}
+function renderReport(){$('pieceTotal').textContent=report.pieces.toLocaleString();$('eventTotal').textContent=report.total.toLocaleString();$('reportTimezone').textContent=report.timezone;
+  bars('defectChart',report.byDefect.slice(0,10));bars('machineChart',report.byMachine.slice(0,10));bars('dailyChart',report.byDay.slice(-30));
+  table('events',['Event time','Logger','Molding machine','Part','Defect','Quantity','Source','Job ID'],report.events.slice(0,reportPageSize),r=>[date(r.timestamp),r.logger,r.machine,r.part,r.defectCode+' · '+r.defect,r.quantity,r.source,r.job]);
+  const start=report.total?report.page*report.pageSize+1:0,end=Math.min((report.page+1)*report.pageSize,report.total);
+  $('pageInfo').textContent=start+'–'+end+' of '+report.total;$('previousPage').disabled=report.page===0;$('nextPage').disabled=end>=report.total;
+  const active=Object.entries(reportFilters).filter(([k,v])=>v&&!(k==='type'&&v==='ALL')).map(([k,v])=>k+': '+v).join(' · ');
+  $('reportInfo').textContent=(active||'All records')+' · Snapshot through log row '+report.snapshotRow+'. Known event time is used; otherwise receipt time.';
+}
+function csvCell(v){let s=text(v);if(/^\s*[=+\-@]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';}
+async function exportCsv(){if(!report)await loadReport(true);const snapshot=report.snapshotRow,filters={...reportFilters},rows=[],total=report.total;
+  for(let page=0;rows.length<total;page++){const r=await api('GET_REPORT',{filters,snapshot_row:snapshot,page,page_size:500});if(!r.events.length)throw new Error('Export could not read the complete snapshot. Try again.');rows.push(...r.events);notify('Exporting '+rows.length.toLocaleString()+' of '+total.toLocaleString()+' events…',false,true);}
+  const headers=['Event time (UTC)','Server receipt (UTC)','Local event date','Logger ID','Molding machine ID','Part ID','Defect code','Defect','Rejected pieces','Job ID','Event ID','Input source','Time quality','Data type'];
+  const lines=[headers.map(csvCell).join(','),...rows.map(r=>[r.timestamp,r.received,r.day,r.logger,r.machine,r.part,r.defectCode,r.defect,r.quantity,r.job,r.event,r.source,r.timeQuality,r.type].map(csvCell).join(','))];
+  const url=URL.createObjectURL(new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='QC_Rejections_'+new Date().toISOString().slice(0,10)+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);notify('Exported '+rows.length.toLocaleString()+' events.');
+}
+$('loginForm').addEventListener('submit',e=>{e.preventDefault();formRun(e.currentTarget,async()=>{const r=await api('LOGIN',{user_id:$('loginId').value,password:$('loginPassword').value});$('loginPassword').value='';sessionEpoch++;token=r.token;user=r.user;sessionStorage.setItem('qc_session',token);showIdentity();if(user.mustChangePassword)switchView('password');else{await loadData();switchView('jobs');}notify('Signed in.');});});
+$('logout').addEventListener('click',async()=>{try{await api('LOGOUT');}catch(e){}clearSession();});
+$('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-view]');if(b)switchView(b.dataset.view);});
+$('passwordForm').addEventListener('submit',e=>{e.preventDefault();formRun(e.currentTarget,async()=>{if($('newPassword').value!==$('confirmPassword').value)throw new Error('New passwords do not match.');const r=await api('CHANGE_PASSWORD',{current_password:$('currentPassword').value,new_password:$('newPassword').value});e.target.reset();clearSession();notify(r.message);});});
+$('jobForm').addEventListener('submit',e=>{e.preventDefault();formRun(e.currentTarget,async()=>{const action=$('jobAction').value,logger=qrId($('jobLogger').value,'LOGGER'),payload={logger_id:logger,machine_id:qrId($('jobMachine').value,'MACHINE'),part_id:qrId($('jobPart').value,'PART'),machine_operator:$('jobOperator').value,reason:$('jobReason').value};if(action==='PART_CHANGEOVER'){const current=data.activeJobs.find(j=>j.logger===logger);if(!current)throw new Error('Refresh jobs and select a running logger first.');payload.job_id=current.id;payload.revision=current.revision;}const r=await mutate(action,payload);notify(r.message,false,true);$('jobReason').value='';$('jobOperator').value='';await loadData();});});
+$('refreshJobs').addEventListener('click',()=>loadData().catch(fail));
+$('jobPageSize').addEventListener('change',()=>{jobPageSize=Number($('jobPageSize').value);loadJobHistory(false,0).catch(fail);});
+$('previousJobPage').addEventListener('click',()=>{const h=data.jobHistory;if(h&&h.page>0)loadJobHistory(false,h.page-1).catch(fail);});
+$('nextJobPage').addEventListener('click',()=>{const h=data.jobHistory;if(h&&(h.page+1)*h.pageSize<h.total)loadJobHistory(false,h.page+1).catch(fail);});
+$('entityForm').addEventListener('submit',e=>{e.preventDefault();formRun(e.currentTarget,async()=>{const r=await mutate('ENTITY_CREATE',{type:$('entityType').value,name:$('entityName').value,entity_id:$('entityId').value});e.target.reset();await loadData();notify('Registered '+r.entity.id+'.');});});
+$('generatePassword').addEventListener('click',()=>{$('userPassword').value='QC-'+uid();$('userPassword').type='text';});
+$('userForm').addEventListener('submit',e=>{e.preventDefault();formRun(e.currentTarget,async()=>{const password=$('userPassword').value,r=await mutate('USER_CREATE',{user_id:$('userId').value,name:$('userName').value,role:$('userRole').value,password});e.target.reset();$('userPassword').type='password';await loadData();showCredential(r.user.userId,password);});});
+$('filterForm').addEventListener('submit',e=>{e.preventDefault();clearTimeout(filterTimer);loadReport(true).catch(fail);});
+$('filterForm').addEventListener('change',()=>{clearTimeout(filterTimer);filterTimer=setTimeout(()=>loadReport(true).catch(fail),350);});
+$('refreshReport').addEventListener('click',()=>loadReport(true).catch(fail));
+$('previousPage').addEventListener('click',()=>{if(reportPage>0){reportPage--;loadReport().catch(fail);}});
+$('nextPage').addEventListener('click',()=>{if(report&&(report.page+1)*report.pageSize<report.total){reportPage++;loadReport().catch(fail);}});
+$('reportPageSize').addEventListener('change',()=>{reportPageSize=Number($('reportPageSize').value);reportPage=0;loadReport(!report).catch(fail);});
+$('exportCsv').addEventListener('click',()=>formRun($('exportCsv').parentElement,exportCsv));
+$('printReport').addEventListener('click',()=>{if(report)window.print();else notify('Load a report first.',true);});
+$('closeDialog').addEventListener('click',()=>{$('dialogContent').replaceChildren();$('editDialog').close();});
+$('editDialog').addEventListener('close',()=>{$('dialogContent').replaceChildren();});
+setInterval(()=>{if(token&&data&&view==='jobs'&&!document.hidden&&!inFlight)refreshJobs().catch(fail);},30000);
+initBranding();renderBranding(QC_INITIAL_BRANDING);
+(async()=>{if(!token)return;try{const r=await api('WHOAMI');user=r.user;showIdentity();if(user.mustChangePassword)switchView('password');else{await loadData();switchView('jobs');}}catch(e){if(e.message==='REQUEST_SUPERSEDED')return;clearSession();fail(e);}})();
+</script>

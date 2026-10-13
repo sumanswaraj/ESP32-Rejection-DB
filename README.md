@@ -1,6 +1,6 @@
 # ESP32 Rejection Logger — Apps Script v3.2.1
 
-Google Sheets and Apps Script backend with a built-in shop-floor dashboard, individual accounts, logger/machine/part registration, job controls, quantity reports and ESP32 schema-v2 ingestion. This repository contains the active Apps Script source; firmware and the flashing tool are maintained separately.
+Google Sheets and Apps Script backend with a built-in shop-floor dashboard, individual accounts, logger/machine/part registration, job controls, quantity reports and ESP32 schema-v2 ingestion. The active Apps Script source is at the repository root; firmware and the flashing tool are maintained separately.
 
 ## Included in this version
 
@@ -17,7 +17,7 @@ Google Sheets and Apps Script backend with a built-in shop-floor dashboard, indi
 | Existing v3.1 backend | [UPGRADE_DASHBOARD.md](UPGRADE_DASHBOARD.md) |
 | Existing v3.2 backend; camera repair only | [CAMERA_FIX.md](CAMERA_FIX.md) |
 
-All **15 `.gs` files, nine HTML files and `appsscript.json`** are required for a complete installation. Add Script and HTML files under the same names in the sheet-bound Apps Script editor. Files in `tests/` and `licenses/`, and Markdown documents, are not Apps Script editor modules.
+All **15 `.gs` files, nine HTML files and `appsscript.json`** at the root are required for a complete installation. Add Script and HTML files under the same names in the sheet-bound Apps Script editor. Files in `tests/`, `licenses/`, `verification/`, `PRE_CAMERA_FIX_SOURCE/` and `PRE_UPGRADE_SOURCE/`, and Markdown documents, are not active Apps Script editor modules. The PRE folders are retained source backups for rollback; do not add them alongside the root modules.
 
 For an existing installation, back up its source and workbook before applying changes. Update its current deployment through **Deploy → Manage deployments → Edit → New version**, preserving its execution/access settings and `/exec` URL. Committing to GitHub stores the source; it does not deploy a Google web app automatically.
 
